@@ -6,24 +6,24 @@ Author: Charlene
 Version: v1.0  
 Last updated: 2025-08-16
 
-> This tutorial targets beginners and researchers who need a fast, practical workflow centered on **R + Seurat**. It covers installation and basic syntax, the Seurat object structure, QC, normalization, dimensionality reduction & clustering, annotation, doublet detection, integration, DE/GSEA, subsetting & reclustering, and reproducibility. A small example using `pbmc_small` (lightweight, no download required) is included, plus advanced sections that require external data (enable as needed).
+> This tutorial is designed for beginners and for researchers who need a rapid, hands-on workflow centered on **R + Seurat**. It covers installation and basic syntax, the Seurat object structure, QC, normalization, dimensionality reduction & clustering, annotation, doublet detection, integration, DE/GSEA, subsetting & reclustering, and reproducibility. A lightweight `pbmc_small` example (no external download required) is included, plus advanced sections that require external data (enable as needed).
 
 ---
 
 ## Table of Contents
 - [0. Setup & Environment](#0-setup--environment)
-- [1. Basic Syntax & Getting Help](#1-basic-syntax--getting-help)
+- [1. Basic Syntax & Help](#1-basic-syntax--help)
 - [2. Seurat Object & Data Structure (Core)](#2-seurat-object--data-structure-core)
 - [3. Quick Start (pbmc_small)](#3-quick-start-pbmc_small)
 - [4. Loading Data (10x/Matrix/RDS)](#4-loading-data-10xmatrixrds)
 - [5. Quality Control (QC) & Filtering](#5-quality-control-qc--filtering)
-- [6. Normalization & Feature Selection: SCTransform vs LogNormalize](#6-normalization--feature-selection-sctransform-vs-lognormalize)
-- [7. Dimensionality Reduction, Neighbor Graph, Clustering & UMAP](#7-dimensionality-reduction-neighbor-graph-clustering--umap)
-- [8. Markers & Initial Manual Annotation](#8-markers--initial-manual-annotation)
-- [9. Automatic Annotation (SingleR, optional)](#9-automatic-annotation-singler-optional)
-- [10. Doublet Detection (scDblFinder)](#10-doublet-detection-scdblfinder)
-- [11. Multi-sample / Batch Integration (SCT / RPCA)](#11-multi-sample--batch-integration-sct--rpca)
-- [12. Cell Cycle & Regression](#12-cell-cycle--regression)
+- [6. Doublet Detection (scDblFinder)](#6-doublet-detection-scdblfinder)
+- [7. Normalization & Feature Selection: SCTransform vs LogNormalize](#7-normalization--feature-selection-sctransform-vs-lognormalize)
+- [8. Cell Cycle & Regression](#8-cell-cycle--regression)
+- [9. Multi-sample / Batch Integration (SCT / RPCA)](#9-multi-sample--batch-integration-sct--rpca)
+- [10. Dimensionality Reduction, Neighbor Graph, Clustering & UMAP](#10-dimensionality-reduction-neighbor-graph-clustering--umap)
+- [11. Markers & Initial Manual Annotation](#11-markers--initial-manual-annotation)
+- [12. Automatic Annotation (SingleR, optional)](#12-automatic-annotation-singler-optional)
 - [13. Differential Expression (DE) & GSEA](#13-differential-expression-de--gsea)
 - [14. Subsetting & Reclustering](#14-subsetting--reclustering)
 - [15. Export & Interoperability](#15-export--interoperability)
@@ -36,7 +36,7 @@ Last updated: 2025-08-16
 ## 0. Setup & Environment
 
 - Recommended: R ≥ 4.3 and RStudio Desktop.  
-- Text encoding: Use UTF‑8 end-to-end. On Windows, you can add `locale = locale(encoding = "UTF-8")` (from `readr`) when reading/writing files.
+- Text encoding: Use UTF-8 throughout. On Windows, you can add `locale = locale(encoding = "UTF-8")` (from `readr`) when reading/writing files.
 
 **Install/load common packages (install once; use `library()` at runtime):**
 ```r
@@ -62,7 +62,7 @@ library(Seurat); library(SeuratData); library(patchwork); library(tidyverse)
 
 ---
 
-## 1. Basic Syntax & Getting Help
+## 1. Basic Syntax & Help
 
 **Assign & print**
 ```r
@@ -234,7 +234,20 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 6. Normalization & Feature Selection: SCTransform vs LogNormalize
+## 6. Doublet Detection (scDblFinder)
+
+```r
+# library(scDblFinder); library(SingleCellExperiment)
+# sce <- as.SingleCellExperiment(obj)
+# sce <- scDblFinder(sce)
+# table(sce$scDblFinder.class)
+# obj$doublet <- sce$scDblFinder.class
+# obj <- subset(obj, subset = doublet == "singlet")
+```
+
+---
+
+## 7. Normalization & Feature Selection: SCTransform vs LogNormalize
 
 **Recommendation: `SCTransform()`** (stable; can regress `percent.mt` / cell-cycle scores).
 ```r
@@ -254,60 +267,18 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 7. Dimensionality Reduction, Neighbor Graph, Clustering & UMAP
+## 8. Cell Cycle & Regression
 
 ```r
-# obj <- RunPCA(obj, npcs = 50, verbose = FALSE)
-# ElbowPlot(obj, ndims = 50)
-# dims_to_use <- 1:30
-# obj <- FindNeighbors(obj, dims = dims_to_use)
-# obj <- FindClusters(obj, resolution = 0.4)
-# obj <- RunUMAP(obj, dims = dims_to_use)
-# DimPlot(obj, reduction = "umap", label = TRUE) + NoLegend()
+# s.genes   <- Seurat::cc.genes.updated.2019$s.genes
+# g2m.genes <- Seurat::cc.genes.updated.2019$g2m.genes
+# obj <- CellCycleScoring(obj, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+# obj <- SCTransform(obj, vars.to.regress = c("percent.mt","S.Score","G2M.Score"), verbose = FALSE)
 ```
 
 ---
 
-## 8. Markers & Initial Manual Annotation
-
-```r
-# DefaultAssay(obj) <- if ("SCT" %in% Assays(obj)) "SCT" else "RNA"
-# Idents(obj) <- "seurat_clusters"
-# markers <- FindAllMarkers(obj, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
-# head(markers)
-# VlnPlot(obj, features = c("MS4A1","LYZ"), pt.size = 0)
-# FeaturePlot(obj, features = c("MS4A1","CD3D","LYZ","GNLY"))
-```
-
----
-
-## 9. Automatic Annotation (SingleR, optional)
-
-```r
-# library(SingleR); library(celldex); library(SingleCellExperiment)
-# ref <- celldex::HumanPrimaryCellAtlasData()
-# sce <- as.SingleCellExperiment(obj)
-# pred <- SingleR(test = sce, ref = ref, labels = ref$label.main)
-# obj$SingleR_label <- pred$labels
-# DimPlot(obj, group.by = "SingleR_label", label = TRUE, repel = TRUE)
-```
-
----
-
-## 10. Doublet Detection (scDblFinder)
-
-```r
-# library(scDblFinder); library(SingleCellExperiment)
-# sce <- as.SingleCellExperiment(obj)
-# sce <- scDblFinder(sce)
-# table(sce$scDblFinder.class)
-# obj$doublet <- sce$scDblFinder.class
-# obj <- subset(obj, subset = doublet == "singlet")
-```
-
----
-
-## 11. Multi-sample / Batch Integration (SCT / RPCA)
+## 9. Multi-sample / Batch Integration (SCT / RPCA)
 
 **SCT integration (recommended)**
 ```r
@@ -332,13 +303,42 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 12. Cell Cycle & Regression
+## 10. Dimensionality Reduction, Neighbor Graph, Clustering & UMAP
 
 ```r
-# s.genes   <- Seurat::cc.genes.updated.2019$s.genes
-# g2m.genes <- Seurat::cc.genes.updated.2019$g2m.genes
-# obj <- CellCycleScoring(obj, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
-# obj <- SCTransform(obj, vars.to.regress = c("percent.mt","S.Score","G2M.Score"), verbose = FALSE)
+# obj <- RunPCA(obj, npcs = 50, verbose = FALSE)
+# ElbowPlot(obj, ndims = 50)
+# dims_to_use <- 1:30
+# obj <- FindNeighbors(obj, dims = dims_to_use)
+# obj <- FindClusters(obj, resolution = 0.4)
+# obj <- RunUMAP(obj, dims = dims_to_use)
+# DimPlot(obj, reduction = "umap", label = TRUE) + NoLegend()
+```
+
+---
+
+## 11. Markers & Initial Manual Annotation
+
+```r
+# DefaultAssay(obj) <- if ("SCT" %in% Assays(obj)) "SCT" else "RNA"
+# Idents(obj) <- "seurat_clusters"
+# markers <- FindAllMarkers(obj, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+# head(markers)
+# VlnPlot(obj, features = c("MS4A1","LYZ"), pt.size = 0)
+# FeaturePlot(obj, features = c("MS4A1","CD3D","LYZ","GNLY"))
+```
+
+---
+
+## 12. Automatic Annotation (SingleR, optional)
+
+```r
+# library(SingleR); library(celldex); library(SingleCellExperiment)
+# ref <- celldex::HumanPrimaryCellAtlasData()
+# sce <- as.SingleCellExperiment(obj)
+# pred <- SingleR(test = sce, ref = ref, labels = ref$label.main)
+# obj$SingleR_label <- pred$labels
+# DimPlot(obj, group.by = "SingleR_label", label = TRUE, repel = TRUE)
 ```
 
 ---
@@ -435,4 +435,4 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-License: This tutorial is released under **CC BY 4.0**.
+License: **CC BY 4.0**.
