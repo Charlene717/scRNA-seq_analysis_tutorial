@@ -1,48 +1,48 @@
-# scRNA-seq 分析教程
-作者：Charlene  
-版本：v1.0 
-最後更新：2025-08-16
+# scRNA-seq Analysis Tutorial (R/Seurat, step-by-step)
+Author: Charlene  
+Version: v1.2  
+Last updated: 2025-08-16
 
-> 本教程面向初學者與需要快速上手的研究者，以 **R + Seurat** 為核心，從安裝與基礎語法，到 Seurat 物件結構、QC、正規化、降維分群、註解、雙重體偵測、整合、DE/GSEA、子群重分析與可重現性，完整呈現一條可實作的分析路徑。內含可立即執行的 `pbmc_small` 範例（輕量且無需下載），以及需要外部資料的進階段落（請依需求啟用）。
-
----
-
-## 目錄
-- [0. 安裝與環境](#0-安裝與環境)
-- [1. 基本語法與求助](#1-基本語法與求助)
-- [2. Seurat 物件與資料結構（重點）](#2-seurat-物件與資料結構重點)
-- [3. 快速上手（pbmc_small）](#3-快速上手pbmc_small)
-- [4. 載入資料（10x/Matrix/RDS）](#4-載入資料10xmatrixrds)
-- [5. 品質管制（QC）與過濾](#5-品質管制qc與過濾)
-- [6. 正規化與特徵選擇：SCTransform vs LogNormalize](#6-正規化與特徵選擇sctransform-vs-lognormalize)
-- [7. 降維、鄰居圖、分群與 UMAP](#7-降維鄰居圖分群與-umap)
-- [8. Marker 與初步註解（手動）](#8-marker-與初步註解手動)
-- [9. 自動註解（SingleR，可選）](#9-自動註解singler可選)
-- [10. 雙重體偵測（scDblFinder）](#10-雙重體偵測scdblfinder)
-- [11. 多樣本/批次整合（SCT / RPCA）](#11-多樣本批次整合sct--rpca)
-- [12. 細胞週期與回歸](#12-細胞週期與回歸)
-- [13. 差異表達（DE）與 GSEA](#13-差異表達de-與-gsea)
-- [14. 亞群重分析（Subsetting & Reclustering）](#14-亞群重分析subsetting--reclustering)
-- [15. 資料導出與跨工具互通](#15-資料導出與跨工具互通)
-- [16. 可重現性與常見陷阱](#16-可重現性與常見陷阱)
-- [附錄A：Minimal Pipeline 模板](#附錄aminimal-pipeline-模板)
-- [附錄B：名詞對照（Glossary）](#附錄b名詞對照glossary)
+> This tutorial targets beginners and researchers who need a fast, practical workflow centered on **R + Seurat**. It covers installation and basic syntax, the Seurat object structure, QC, normalization, dimensionality reduction & clustering, annotation, doublet detection, integration, DE/GSEA, subsetting & reclustering, and reproducibility. A small example using `pbmc_small` (lightweight, no download required) is included, plus advanced sections that require external data (enable as needed).
 
 ---
 
-## 0. 安裝與環境
+## Table of Contents
+- [0. Setup & Environment](#0-setup--environment)
+- [1. Basic Syntax & Getting Help](#1-basic-syntax--getting-help)
+- [2. Seurat Object & Data Structure (Core)](#2-seurat-object--data-structure-core)
+- [3. Quick Start (pbmc_small)](#3-quick-start-pbmc_small)
+- [4. Loading Data (10x/Matrix/RDS)](#4-loading-data-10xmatrixrds)
+- [5. Quality Control (QC) & Filtering](#5-quality-control-qc--filtering)
+- [6. Normalization & Feature Selection: SCTransform vs LogNormalize](#6-normalization--feature-selection-sctransform-vs-lognormalize)
+- [7. Dimensionality Reduction, Neighbor Graph, Clustering & UMAP](#7-dimensionality-reduction-neighbor-graph-clustering--umap)
+- [8. Markers & Initial Manual Annotation](#8-markers--initial-manual-annotation)
+- [9. Automatic Annotation (SingleR, optional)](#9-automatic-annotation-singler-optional)
+- [10. Doublet Detection (scDblFinder)](#10-doublet-detection-scdblfinder)
+- [11. Multi-sample / Batch Integration (SCT / RPCA)](#11-multi-sample--batch-integration-sct--rpca)
+- [12. Cell Cycle & Regression](#12-cell-cycle--regression)
+- [13. Differential Expression (DE) & GSEA](#13-differential-expression-de--gsea)
+- [14. Subsetting & Reclustering](#14-subsetting--reclustering)
+- [15. Export & Interoperability](#15-export--interoperability)
+- [16. Reproducibility & Common Pitfalls](#16-reproducibility--common-pitfalls)
+- [Appendix A: Minimal Pipeline Template](#appendix-a-minimal-pipeline-template)
+- [Appendix B: Glossary](#appendix-b-glossary)
 
-- 建議環境：R ≥ 4.3 與 RStudio Desktop。  
-- 文字編碼：建議全程使用 UTF-8；Windows 讀寫可加 `locale = locale(encoding = "UTF-8")`（`readr`）。
+---
 
-**安裝/載入常用套件（安裝一次；使用時以 `library()` 載入）：**
+## 0. Setup & Environment
+
+- Recommended: R ≥ 4.3 and RStudio Desktop.  
+- Text encoding: Use UTF‑8 end-to-end. On Windows, you can add `locale = locale(encoding = "UTF-8")` (from `readr`) when reading/writing files.
+
+**Install/load common packages (install once; use `library()` at runtime):**
 ```r
 install.packages(c(
   "Seurat","SeuratData","patchwork","tidyverse","remotes",
   "rmarkdown","knitr","Matrix"
 ))
 
-# Bioconductor 套件（視分析需求）
+# Bioconductor packages (as needed)
 if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
 BiocManager::install(c(
   "SingleR","celldex","scDblFinder","DropletUtils",
@@ -50,56 +50,56 @@ BiocManager::install(c(
 ))
 install.packages(c("msigdbr","SeuratDisk"))
 
-# 可選：SCTransform 加速
+# Optional: speed up SCTransform
 BiocManager::install("glmGamPoi")
 
-# 需用時載入
+# Load when needed
 library(Seurat); library(SeuratData); library(patchwork); library(tidyverse)
 ```
 
 ---
 
-## 1. 基本語法與求助
+## 1. Basic Syntax & Getting Help
 
-**指派與列印**
+**Assign & print**
 ```r
 x <- 3 * 7; x  # 21
 ```
 
-**求助**
+**Help**
 ```r
-?NormalizeData            # 或 help("NormalizeData")
+?NormalizeData            # or help("NormalizeData")
 help.search("integration")
-apropos("FindCluster")    # 模糊搜
+apropos("FindCluster")    # fuzzy search
 ```
 
-**管線（R 4.1+ 原生 `|>`）**
+**Pipes (base R 4.1+ `|>` )**
 ```r
 1:5 |> mean()
 mtcars |> head(3) |> summary()
 ```
 
-**小技巧**：常用檢視函數 `class()`、`str()`、`dim()`、`head()` 與 `summary()`；報錯後可看 `traceback()`。
+**Tips:** Use `class()`, `str()`, `dim()`, `head()`, `summary()` to inspect objects; after an error, check `traceback()`.
 
 ---
 
-## 2. Seurat 物件與資料結構（重點）
+## 2. Seurat Object & Data Structure (Core)
 
-### 2.1 大骨架
-- **Assays**（`obj@assays`）：資料層（RNA / SCT / integrated / ADT…）。  
-- **meta.data**（`obj@meta.data`）：細胞層級中介資料（列 = 細胞）。  
-- **reductions**（`obj@reductions`）：降維結果（`pca`、`umap`、`tsne`、`lsi`）。  
-- **graphs**（`obj@graphs`）：KNN/SNN/WNN 圖。  
-- **commands**（`obj@commands`）：流程與參數紀錄。  
-- **tools/misc**：延伸分析或自訂暫存。  
+### 2.1 Skeleton
+- **Assays** (`obj@assays`): data layers (RNA / SCT / integrated / ADT …).  
+- **meta.data** (`obj@meta.data`): per-cell metadata (rows = cells).  
+- **reductions** (`obj@reductions`): embeddings (`pca`, `umap`, `tsne`, `lsi`).  
+- **graphs** (`obj@graphs`): KNN/SNN/WNN graphs.  
+- **commands** (`obj@commands`): pipeline steps & parameters.  
+- **tools/misc**: extra analysis or scratch space.  
 
-**最佳實踐**：優先用存取器（`Assays()`、`DefaultAssay()`、`GetAssayData()`、`Idents()`、`Embeddings()`、`Cells()`、`Features()`）而非 `@`。
+**Best practice:** Prefer accessors (`Assays()`, `DefaultAssay()`, `GetAssayData()`, `Idents()`, `Embeddings()`, `Cells()`, `Features()`) over `@` whenever possible.
 
-### 2.2 Assay 三大槽位與高變異基因
-- `counts`（原始計數，稀疏矩陣，整數）  
-- `data`（正規化表達，如 `log1p(CPM)`）  
-- `scale.data`（縮放後表達，多用於 PCA/圖形）  
-- `VariableFeatures(obj)`：高變異基因
+### 2.2 Assay slots & variable features
+- `counts` (raw counts, sparse, integers)  
+- `data` (normalized expression, e.g., `log1p(CPM)`)  
+- `scale.data` (scaled expression used for PCA/plots)  
+- `VariableFeatures(obj)` (variable genes)
 
 ```r
 obj <- pbmc_small
@@ -111,20 +111,20 @@ dim(m_counts); dim(m_data)
 head(VariableFeatures(obj))
 ```
 
-### 2.3 `meta.data` 與 `Idents`
+### 2.3 `meta.data` and `Idents`
 ```r
 head(obj@meta.data, 2)
-obj$dummy_tag <- sample(c("A","B"), ncol(obj), TRUE)  # 快速新增欄位
+obj$dummy_tag <- sample(c("A","B"), ncol(obj), TRUE)  # quickly add a column
 table(obj$dummy_tag)
 
-Idents(obj) <- "seurat_clusters"  # 設定活躍身分
+Idents(obj) <- "seurat_clusters"  # set active identity
 ```
 
-### 2.4 DimReduc：PCA/UMAP 結構
-- `@cell.embeddings`：細胞座標（細胞 × 維度）  
-- `@feature.loadings`：特徵負載（方法依據）  
-- `@stdev`：PCA 標準差  
-- `@key`：座標前綴（如 `PC_`/`UMAP_`）  
+### 2.4 DimReduc: PCA/UMAP internals
+- `@cell.embeddings`: coordinates (cells × dimensions)  
+- `@feature.loadings`: feature loadings (method-dependent)  
+- `@stdev`: PCA standard deviations  
+- `@key`: coordinate prefix (e.g., `PC_` / `UMAP_`)  
 
 ```r
 obj <- NormalizeData(obj) |>
@@ -137,38 +137,38 @@ obj <- RunPCA(obj, verbose = FALSE) |>
 head(Embeddings(obj, "pca")[,1:3])
 ```
 
-### 2.5 Graphs：KNN/SNN/WNN
+### 2.5 Graphs: KNN/SNN/WNN
 ```r
 obj <- FindNeighbors(obj, dims = 1:10)
-names(obj@graphs)  # 例如 "RNA_snn"
+names(obj@graphs)  # e.g., "RNA_snn"
 ```
 
 ### 2.6 commands / tools / misc
 ```r
-names(obj@commands)[1:5]           # 看看做過哪些主要步驟與參數
+names(obj@commands)[1:5]           # see major steps & parameters
 str(obj@tools, max.level = 1)
 str(obj@misc,  max.level = 1)
 ```
 
-### 2.7 小抄：我要拿 X，去哪裡？
-| 需求           | 存放位置/類別     | 推薦取用方式                                  |
-|----------------|--------------------|-----------------------------------------------|
-| 原始計數       | `Assay@counts`     | `GetAssayData(obj, slot = "counts")`          |
-| 正規化表達     | `Assay@data`       | `GetAssayData(obj, slot = "data")`            |
-| 縮放後表達     | `Assay@scale.data` | `GetAssayData(obj, slot = "scale.data")`      |
-| 高變異基因     | Assay/物件屬性     | `VariableFeatures(obj)`                        |
-| 細胞中介資料   | `obj@meta.data`    | `obj$欄名` 或 `obj@meta.data`                 |
-| 群集/身分      | Idents             | `Idents(obj)` / `RenameIdents()`              |
-| PCA/UMAP 座標  | DimReduc           | `Embeddings(obj, "pca"/"umap")`               |
-| KNN/SNN 圖     | `obj@graphs`       | `FindNeighbors()` 後 `names(obj@graphs)`      |
-| 流程紀錄       | `obj@commands`     | `names(obj@commands)`                          |
-| 細胞/基因名稱  | Cells/Features     | `Cells(obj)` / `Features(obj)`                |
+### 2.7 Cheat Sheet: “Where is X stored?”
+| Need               | Where                | How to access                                      |
+|--------------------|----------------------|----------------------------------------------------|
+| Raw counts         | `Assay@counts`       | `GetAssayData(obj, slot = "counts")`               |
+| Normalized expr    | `Assay@data`         | `GetAssayData(obj, slot = "data")`                 |
+| Scaled expr        | `Assay@scale.data`   | `GetAssayData(obj, slot = "scale.data")`           |
+| Variable genes     | Assay/object         | `VariableFeatures(obj)`                            |
+| Cell metadata      | `obj@meta.data`      | `obj$column` or `obj@meta.data`                    |
+| Clusters/identity  | Idents               | `Idents(obj)` / `RenameIdents()`                   |
+| PCA/UMAP coords    | DimReduc             | `Embeddings(obj, "pca"/"umap")`                    |
+| KNN/SNN graphs     | `obj@graphs`         | after `FindNeighbors()`, check `names(obj@graphs)` |
+| Pipeline record    | `obj@commands`       | `names(obj@commands)`                              |
+| Cell/Gene names    | Cells/Features       | `Cells(obj)` / `Features(obj)`                     |
 
 ---
 
-## 3. 快速上手（pbmc_small）
+## 3. Quick Start (pbmc_small)
 
-目的：跑通最精簡流程；建立對 Seurat 物件的直覺。
+Goal: run the minimal pipeline end-to-end; build intuition for the Seurat object.
 
 ```r
 library(Seurat); library(patchwork)
@@ -188,21 +188,21 @@ FeaturePlot(obj, features = head(VariableFeatures(obj), 4))
 
 ---
 
-## 4. 載入資料（10x/Matrix/RDS）
+## 4. Loading Data (10x/Matrix/RDS)
 
 ```r
-# 10x 目錄（含 barcodes.tsv.gz / features.tsv.gz / matrix.mtx.gz）
+# 10x folder (contains barcodes.tsv.gz / features.tsv.gz / matrix.mtx.gz)
 # counts <- Read10X(data.dir = "data/10x_pbmc/")
 # obj <- CreateSeuratObject(counts, project = "PBMC", min.cells = 3, min.features = 200)
 
-# RDS（建議儲存/載入 Seurat 物件）
+# RDS (recommended for saving/loading Seurat objects)
 # saveRDS(obj, "data/seurat_obj.rds")
 # obj <- readRDS("data/seurat_obj.rds")
 ```
 
 ---
 
-## 5. 品質管制（QC）與過濾
+## 5. Quality Control (QC) & Filtering
 
 ```r
 mt_pat <- if (any(grepl("^MT-", rownames(obj)))) "^MT-" else "^mt-"
@@ -212,35 +212,35 @@ VlnPlot(obj, features = c("nFeature_RNA","nCount_RNA","percent.mt"), ncol = 3)
 FeatureScatter(obj, feature1 = "nCount_RNA",   feature2 = "nFeature_RNA") +
 FeatureScatter(obj, feature1 = "nCount_RNA",   feature2 = "percent.mt")
 
-# 以 MAD 為參考估計過濾閾值（請視資料調整）
+# Use MAD as a rough guide (adjust to your data)
 mad_cut <- function(x, nmads=3){
   med <- median(x); m <- mad(x)
   c(max(0, med - nmads*m), med + nmads*m)
 }
 # lim_feat  <- mad_cut(obj$nFeature_RNA)
 # lim_count <- mad_cut(obj$nCount_RNA)
-# mt_upper  <- 20  # 人類常見 < 10–20%
+# mt_upper  <- 20  # Humans often < 10–20%
 # obj <- subset(obj, subset =
 #   nFeature_RNA > lim_feat[1] & nFeature_RNA < lim_feat[2] &
 #   nCount_RNA   > lim_count[1] & nCount_RNA   < lim_count[2] &
 #   percent.mt   < mt_upper)
 ```
 
-> 經驗閾值（依樣本差異調整）：`nFeature_RNA` 過低疑空滴、過高疑 doublet；人類 `percent.mt` 常見 < 10–20%。  
-> 進階：`DropletUtils::emptyDrops` 去空滴；`SoupX` 校正環境 RNA。
+> Heuristics (tune by dataset): low `nFeature_RNA` suggests empty droplets; high `nFeature_RNA` suggests doublets; for humans, `percent.mt` is often < 10–20%.  
+> Advanced: remove empty droplets with `DropletUtils::emptyDrops`; correct ambient RNA with `SoupX`.
 
 ---
 
-## 6. 正規化與特徵選擇：SCTransform vs LogNormalize
+## 6. Normalization & Feature Selection: SCTransform vs LogNormalize
 
-**推薦：`SCTransform()`**（穩定、可回歸 `percent.mt`/細胞週期分數等）。
+**Recommendation: `SCTransform()`** (stable; can regress `percent.mt` / cell-cycle scores).
 ```r
-# SCTransform（建議）
+# SCTransform (recommended)
 # obj <- SCTransform(obj, variable.features.n = 3000, vars.to.regress = "percent.mt", verbose = FALSE)
 # DefaultAssay(obj) <- "SCT"
 ```
 
-**傳統流程（適合教學/小資料）：**
+**Traditional workflow (good for teaching/small data):**
 ```r
 # LogNormalize
 # obj <- NormalizeData(obj)
@@ -251,7 +251,7 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 7. 降維、鄰居圖、分群與 UMAP
+## 7. Dimensionality Reduction, Neighbor Graph, Clustering & UMAP
 
 ```r
 # obj <- RunPCA(obj, npcs = 50, verbose = FALSE)
@@ -265,7 +265,7 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 8. Marker 與初步註解（手動）
+## 8. Markers & Initial Manual Annotation
 
 ```r
 # DefaultAssay(obj) <- if ("SCT" %in% Assays(obj)) "SCT" else "RNA"
@@ -278,7 +278,7 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 9. 自動註解（SingleR，可選）
+## 9. Automatic Annotation (SingleR, optional)
 
 ```r
 # library(SingleR); library(celldex); library(SingleCellExperiment)
@@ -291,7 +291,7 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 10. 雙重體偵測（scDblFinder）
+## 10. Doublet Detection (scDblFinder)
 
 ```r
 # library(scDblFinder); library(SingleCellExperiment)
@@ -304,9 +304,9 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 11. 多樣本/批次整合（SCT / RPCA）
+## 11. Multi-sample / Batch Integration (SCT / RPCA)
 
-**SCT 整合（建議）**
+**SCT integration (recommended)**
 ```r
 # features  <- SelectIntegrationFeatures(object.list = list_objs, nfeatures = 3000)
 # list_objs <- PrepSCTIntegration(object.list = list_objs, anchor.features = features, verbose = FALSE)
@@ -316,7 +316,7 @@ mad_cut <- function(x, nmads=3){
 # DefaultAssay(integrated) <- "integrated"
 ```
 
-**RPCA 整合（適合相近組成/較大資料）**
+**RPCA integration (good for similar compositions / larger datasets)**
 ```r
 # list_objs <- lapply(list_objs, \(x){
 #   x |> NormalizeData() |> FindVariableFeatures() |> ScaleData() |> RunPCA(verbose = FALSE)
@@ -329,7 +329,7 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 12. 細胞週期與回歸
+## 12. Cell Cycle & Regression
 
 ```r
 # s.genes   <- Seurat::cc.genes.updated.2019$s.genes
@@ -340,16 +340,16 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 13. 差異表達（DE） 與 GSEA
+## 13. Differential Expression (DE) & GSEA
 
-**差異表達**
+**Differential expression**
 ```r
 # Idents(obj) <- "seurat_clusters"
 # de_0_vs_all <- FindMarkers(obj, ident.1 = 0, min.pct = 0.25, logfc.threshold = 0.25, test.use = "wilcox")
 # head(de_0_vs_all)
 ```
 
-**GSEA（`clusterProfiler` + `fgsea` + `msigdbr`）**
+**GSEA (`clusterProfiler` + `fgsea` + `msigdbr`)**
 ```r
 # library(clusterProfiler); library(msigdbr); library(fgsea)
 # species <- "Homo sapiens"
@@ -360,11 +360,11 @@ mad_cut <- function(x, nmads=3){
 # fg <- fgsea(pathways = path_list, stats = rk, minSize = 15, maxSize = 500, nperm = 1000)
 ```
 
-> 常見錯誤：「`No gene can be mapped`」→ 檢查**物種**、**ID 類型**（`SYMBOL`/`ENTREZID`/`ENSEMBL`）與**大小寫**（人類多大寫，小鼠多小寫/首字大寫）。
+> Common error: “`No gene can be mapped`” → check **species**, **ID type** (`SYMBOL`/`ENTREZID`/`ENSEMBL`), and **case** (humans: upper case; mouse: lower case / capitalization).
 
 ---
 
-## 14. 亞群重分析（Subsetting & Reclustering）
+## 14. Subsetting & Reclustering
 
 ```r
 # tcell_genes <- c("CD3D","CD3E","CD2")
@@ -377,7 +377,7 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 15. 資料導出與跨工具互通
+## 15. Export & Interoperability
 
 ```r
 # saveRDS(obj, "export/seurat_obj.rds")
@@ -389,7 +389,7 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 16. 可重現性與常見陷阱
+## 16. Reproducibility & Common Pitfalls
 
 ```r
 # if (!requireNamespace("renv", quietly = TRUE)) install.packages("renv")
@@ -397,16 +397,16 @@ mad_cut <- function(x, nmads=3){
 # sessionInfo()
 ```
 
-**常見陷阱**
-- 粒線體/核糖體前綴：Human `^MT-`/`^RP[LS]`；Mouse `^mt-`/`^Rp[ls]`。  
-- 過濾過嚴/鬆：先看分佈再定閾值；MAD 只作參考。  
-- 整合後仍有批次效應：調整 `nfeatures`/`dims`，或試 Harmony/fastMNN；先移除極端群。  
-- 雙重體：提高預估率或調參重跑；檢查高 `nCount_RNA` 與多 lineage marker 的細胞。  
-- GSEA 映射：物種/ID/大小寫一致；處理重複符號。  
+**Common pitfalls**
+- Mito/ribo prefixes: Humans `^MT-` / `^RP[LS]`; Mouse `^mt-` / `^Rp[ls]`.  
+- Over/under-filtering: inspect distributions first; MAD is only a heuristic.  
+- Residual batch effects after integration: tune `nfeatures`/`dims`, try Harmony/fastMNN; remove extreme clusters first.  
+- Doublets: increase expected rate or retune; look for high `nCount_RNA` with multiple lineage markers.  
+- GSEA mapping: ensure species/ID/case match; handle duplicate symbols.  
 
 ---
 
-## 附錄A：Minimal Pipeline 模板
+## Appendix A: Minimal Pipeline Template
 
 ```r
 # library(Seurat); set.seed(123)
@@ -421,15 +421,15 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 附錄B：名詞對照（Glossary）
+## Appendix B: Glossary
 
-- **Feature/Gene**：基因（行）；**Cell/Barcode**：細胞（列）。  
-- **Assay**：資料層（如 RNA、SCT、integrated）。  
-- **Reduction**：降維結果（PCA/UMAP/TSNE）。  
-- **Graph**：細胞間鄰居關係（KNN/SNN/WNN）。  
-- **Anchors**：整合與標籤轉移的對應關係。  
-- **Doublet**：兩個細胞共用同一條 barcode 的混合體。  
+- **Feature/Gene**: gene (rows); **Cell/Barcode**: cells (columns).  
+- **Assay**: data layer (e.g., RNA, SCT, integrated).  
+- **Reduction**: dimensionality reduction (PCA/UMAP/TSNE).  
+- **Graph**: cell–cell neighbor relationships (KNN/SNN/WNN).  
+- **Anchors**: correspondences used in integration/label transfer.  
+- **Doublet**: two cells mixed under the same barcode.  
 
 ---
 
-版權：本教學可自由使用與修改（CC BY 4.0）。
+License: This tutorial is released under **CC BY 4.0**.
