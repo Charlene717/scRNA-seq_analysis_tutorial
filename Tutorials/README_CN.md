@@ -17,14 +17,14 @@
 - [3. 快速上手（pbmc_small）](#3-快速上手pbmc_small)
 - [4. 載入資料（10x/Matrix/RDS）](#4-載入資料10xmatrixrds)
 - [5. 品質管制（QC）與過濾](#5-品質管制qc與過濾)
-- [6. 正規化與特徵選擇：SCTransform vs LogNormalize](#6-正規化與特徵選擇sctransform-vs-lognormalize)
-- [7. 降維、鄰居圖、分群與 UMAP](#7-降維鄰居圖分群與-umap)
-- [8. Marker 與初步註解（手動）](#8-marker-與初步註解手動)
-- [9. 自動註解（SingleR，可選）](#9-自動註解singler可選)
-- [10. 雙重體偵測（scDblFinder）](#10-雙重體偵測scdblfinder)
-- [11. 多樣本/批次整合（SCT / RPCA）](#11-多樣本批次整合sct--rpca)
-- [12. 細胞週期與回歸](#12-細胞週期與回歸)
-- [13. 差異表達（DE）與 GSEA](#13-差異表達de-與-gsea)
+- [6. 雙重體偵測（scDblFinder）](#6-雙重體偵測scdblfinder)
+- [7. 正規化與特徵選擇：SCTransform vs LogNormalize](#7-正規化與特徵選擇sctransform-vs-lognormalize)
+- [8. 細胞週期與回歸](#8-細胞週期與回歸)
+- [9. 多樣本/批次整合（SCT / RPCA）](#9-多樣本批次整合sct--rpca)
+- [10. 降維、鄰居圖、分群與 UMAP](#10-降維鄰居圖分群與-umap)
+- [11. Marker 與初步註解（手動）](#11-marker-與初步註解手動)
+- [12. 自動註解（SingleR，可選）](#12-自動註解singler可選)
+- [13. 差異表達（DE） 與 GSEA](#13-差異表達de-與-gsea)
 - [14. 亞群重分析（Subsetting & Reclustering）](#14-亞群重分析subsetting--reclustering)
 - [15. 資料導出與跨工具互通](#15-資料導出與跨工具互通)
 - [16. 可重現性與常見陷阱](#16-可重現性與常見陷阱)
@@ -234,7 +234,20 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 6. 正規化與特徵選擇：SCTransform vs LogNormalize
+## 6. 雙重體偵測（scDblFinder）
+
+```r
+# library(scDblFinder); library(SingleCellExperiment)
+# sce <- as.SingleCellExperiment(obj)
+# sce <- scDblFinder(sce)
+# table(sce$scDblFinder.class)
+# obj$doublet <- sce$scDblFinder.class
+# obj <- subset(obj, subset = doublet == "singlet")
+```
+
+---
+
+## 7. 正規化與特徵選擇：SCTransform vs LogNormalize
 
 **推薦：`SCTransform()`**（穩定、可回歸 `percent.mt`/細胞週期分數等）。
 ```r
@@ -254,60 +267,18 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 7. 降維、鄰居圖、分群與 UMAP
+## 8. 細胞週期與回歸
 
 ```r
-# obj <- RunPCA(obj, npcs = 50, verbose = FALSE)
-# ElbowPlot(obj, ndims = 50)
-# dims_to_use <- 1:30
-# obj <- FindNeighbors(obj, dims = dims_to_use)
-# obj <- FindClusters(obj, resolution = 0.4)
-# obj <- RunUMAP(obj, dims = dims_to_use)
-# DimPlot(obj, reduction = "umap", label = TRUE) + NoLegend()
+# s.genes   <- Seurat::cc.genes.updated.2019$s.genes
+# g2m.genes <- Seurat::cc.genes.updated.2019$g2m.genes
+# obj <- CellCycleScoring(obj, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+# obj <- SCTransform(obj, vars.to.regress = c("percent.mt","S.Score","G2M.Score"), verbose = FALSE)
 ```
 
 ---
 
-## 8. Marker 與初步註解（手動）
-
-```r
-# DefaultAssay(obj) <- if ("SCT" %in% Assays(obj)) "SCT" else "RNA"
-# Idents(obj) <- "seurat_clusters"
-# markers <- FindAllMarkers(obj, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
-# head(markers)
-# VlnPlot(obj, features = c("MS4A1","LYZ"), pt.size = 0)
-# FeaturePlot(obj, features = c("MS4A1","CD3D","LYZ","GNLY"))
-```
-
----
-
-## 9. 自動註解（SingleR，可選）
-
-```r
-# library(SingleR); library(celldex); library(SingleCellExperiment)
-# ref <- celldex::HumanPrimaryCellAtlasData()
-# sce <- as.SingleCellExperiment(obj)
-# pred <- SingleR(test = sce, ref = ref, labels = ref$label.main)
-# obj$SingleR_label <- pred$labels
-# DimPlot(obj, group.by = "SingleR_label", label = TRUE, repel = TRUE)
-```
-
----
-
-## 10. 雙重體偵測（scDblFinder）
-
-```r
-# library(scDblFinder); library(SingleCellExperiment)
-# sce <- as.SingleCellExperiment(obj)
-# sce <- scDblFinder(sce)
-# table(sce$scDblFinder.class)
-# obj$doublet <- sce$scDblFinder.class
-# obj <- subset(obj, subset = doublet == "singlet")
-```
-
----
-
-## 11. 多樣本/批次整合（SCT / RPCA）
+## 9. 多樣本/批次整合（SCT / RPCA）
 
 **SCT 整合（建議）**
 ```r
@@ -332,13 +303,42 @@ mad_cut <- function(x, nmads=3){
 
 ---
 
-## 12. 細胞週期與回歸
+## 10. 降維、鄰居圖、分群與 UMAP
 
 ```r
-# s.genes   <- Seurat::cc.genes.updated.2019$s.genes
-# g2m.genes <- Seurat::cc.genes.updated.2019$g2m.genes
-# obj <- CellCycleScoring(obj, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
-# obj <- SCTransform(obj, vars.to.regress = c("percent.mt","S.Score","G2M.Score"), verbose = FALSE)
+# obj <- RunPCA(obj, npcs = 50, verbose = FALSE)
+# ElbowPlot(obj, ndims = 50)
+# dims_to_use <- 1:30
+# obj <- FindNeighbors(obj, dims = dims_to_use)
+# obj <- FindClusters(obj, resolution = 0.4)
+# obj <- RunUMAP(obj, dims = dims_to_use)
+# DimPlot(obj, reduction = "umap", label = TRUE) + NoLegend()
+```
+
+---
+
+## 11. Marker 與初步註解（手動）
+
+```r
+# DefaultAssay(obj) <- if ("SCT" %in% Assays(obj)) "SCT" else "RNA"
+# Idents(obj) <- "seurat_clusters"
+# markers <- FindAllMarkers(obj, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+# head(markers)
+# VlnPlot(obj, features = c("MS4A1","LYZ"), pt.size = 0)
+# FeaturePlot(obj, features = c("MS4A1","CD3D","LYZ","GNLY"))
+```
+
+---
+
+## 12. 自動註解（SingleR，可選）
+
+```r
+# library(SingleR); library(celldex); library(SingleCellExperiment)
+# ref <- celldex::HumanPrimaryCellAtlasData()
+# sce <- as.SingleCellExperiment(obj)
+# pred <- SingleR(test = sce, ref = ref, labels = ref$label.main)
+# obj$SingleR_label <- pred$labels
+# DimPlot(obj, group.by = "SingleR_label", label = TRUE, repel = TRUE)
 ```
 
 ---
