@@ -1,4 +1,4 @@
-# scRNA-seq 分析教程（R/Seurat，由淺入深）
+# scRNA-seq 分析教程
 作者：Charlene  
 版本：v1.2  
 最後更新：2025-08-16
