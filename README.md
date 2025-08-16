@@ -1,6 +1,9 @@
 # scRNA-seq Analysis Tutorial (R/Seurat, step-by-step)
+### *For the Chinese version of this guide, please see the **[中文版本](./Tutorials/README_CN.md)**.*
+---
+
 Author: Charlene  
-Version: v1.2  
+Version: v1.0  
 Last updated: 2025-08-16
 
 > This tutorial targets beginners and researchers who need a fast, practical workflow centered on **R + Seurat**. It covers installation and basic syntax, the Seurat object structure, QC, normalization, dimensionality reduction & clustering, annotation, doublet detection, integration, DE/GSEA, subsetting & reclustering, and reproducibility. A small example using `pbmc_small` (lightweight, no download required) is included, plus advanced sections that require external data (enable as needed).
