@@ -3,6 +3,9 @@
 `sparseMatrix` (commonly used in R via the **Matrix** package, e.g., `dgCMatrix`) is most beneficial when **most entries in the data matrix are zeros**, because it can **greatly reduce memory usage and improve computational efficiency**.  
 This is especially important for **scRNA-seq** and **spatial transcriptomics**, where expression matrices are typically highly sparse (often **90–99% zeros**).
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Charlene717/scRNA-seq_analysis_tutorial/main/Figures/20260217_sparseMatrix_EN.png" width="1000">
+</p>
 ---
 
 ## Why do we need sparse matrices?

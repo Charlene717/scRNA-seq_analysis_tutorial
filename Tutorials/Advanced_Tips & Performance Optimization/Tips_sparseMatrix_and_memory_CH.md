@@ -4,7 +4,7 @@
 這對 **scRNA-seq** 與 **spatial transcriptomics** 特別重要，因為 expression matrix 往往高度稀疏（常見 90–99% 為 0）。
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Charlene717/scRNA-seq_analysis_tutorial/main/Figures/20260217_sparseMatrix_CH.png" width="900">
+  <img src="https://raw.githubusercontent.com/Charlene717/scRNA-seq_analysis_tutorial/main/Figures/20260217_sparseMatrix_CH.png" width="1000">
 </p>
 ---
 
