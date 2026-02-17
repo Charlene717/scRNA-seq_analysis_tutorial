@@ -1,4 +1,4 @@
-# sparseMatrix（稀疏矩陣）的優勢與使用情境（以單細胞/空間轉錄體為例）
+# sparseMatrix（稀疏矩陣）的核心優勢與應用場景：以單細胞與空間轉錄體分析為例
 
 `sparseMatrix`（R 中常見於 **Matrix** 套件，例如 `dgCMatrix`）最大的優勢是：**當資料中大部分元素是 0 時，可以大幅節省記憶體並提升運算效率**。  
 這對 **scRNA-seq** 與 **spatial transcriptomics** 特別重要，因為 expression matrix 往往高度稀疏（常見 90–99% 為 0）。
