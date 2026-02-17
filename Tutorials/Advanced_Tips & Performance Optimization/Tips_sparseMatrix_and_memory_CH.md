@@ -3,6 +3,9 @@
 `sparseMatrix`（R 中常見於 **Matrix** 套件，例如 `dgCMatrix`）最大的優勢是：**當資料中大部分元素是 0 時，可以大幅節省記憶體並提升運算效率**。  
 這對 **scRNA-seq** 與 **spatial transcriptomics** 特別重要，因為 expression matrix 往往高度稀疏（常見 90–99% 為 0）。
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Charlene717/scRNA-seq_analysis_tutorial/main/Figures/20260217_sparseMatrix_CH.png" width="600">
+</p>
 ---
 
 ## 為什麼需要 sparse matrix？
