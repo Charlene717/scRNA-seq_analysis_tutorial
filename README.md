@@ -1,4 +1,4 @@
-# scRNA-seq Analysis Tutorial (R/Seurat, step-by-step)
+# scRNA-seq Advanced Analysis Tutorial (R/Seurat, step-by-step)
 ### *For the Chinese version of this guide, please see the **[中文版本](./Tutorials/README_CN.md)**.*
 ---
 
